@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML5 리듬 게임</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        canvas {
+            display: block;
+            margin: 10px auto;
+            border: 1px solid black;
+            background-color: #f0f0f0;
+        }
+        #dropBox {
+            width: 100px;
+            height: 100px;
+            border: 2px dashed #ccc; /* 테두리 스타일 */            
+            margin: 0px auto;
+            display: flex; /* Flexbox를 사용하여 정렬 */
+            align-items: center; /* 수직 정렬 */
+            justify-content: center; /* 수평 정렬 */
+            overflow: hidden; /* 내용이 박스를 벗어나지 않도록 설정 */
+            position: relative; /* 자식 요소에 대한 기준 설정 */
+        }
+        #dropBox img {
+            width: 100%; /* 이미지를 박스의 너비에 맞게 조정 */
+            height: 100%; /* 이미지를 박스의 높이에 맞게 조정 */
+            object-fit: cover; /* 이미지 비율 유지하며 꽉 차게 설정 */
+            position: absolute; /* 절대 위치 지정 */
+            top: 0; /* 상단 맞춤 */
+            left: 0; /* 좌측 맞춤 */
+            border: none; /* 테두리 제거 */
+            outline: none; /* 아울라인 제거 */
+        }
+        .musicBox {
+            display: flex; /* 플렉스 박스 사용 */
+            justify-content: center; /* 수평 중앙 정렬 */
+            align-items: center; /* 수직 중앙 정렬 */
+            flex-direction: row; /* 수평 배치 */
+            flex-wrap: wrap; /* 아이템이 넘칠 경우 다음 줄로 감싸기 */
+            gap: 20px; /* 아이템 간 간격 설정 */
+            margin: 0 auto; /* 가운데 정렬 */
+            max-width: 700px /* 최대 너비 설정 (필요시 조정 가능) */
+        }
+        .imageWrapper {
+            text-align: center; /* 이미지와 텍스트를 가운데 정렬 */
+        }
+        .musicBox img {
+            width: 150px;
+            height: 150px;
+            margin: 0 10px;
+            border: 1px solid black;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- <h1>리듬 게임</h1> -->
+
+    <p></p>
+    <div class="musicBox">
+        <div class="imageWrapper">
+            <img id="img1" src="1.jpg" draggable="true" alt="Music 1">
+            <p>듀스 - 말하자면</p>
+        </div>
+        <div id="dropBox"><br><b>드래그 해서 노래를 선택하세요</b></div>
+        <div class="imageWrapper">
+            <img id="img2" src="2.jpg" draggable="true" alt="Music 2">
+            <p>베토벤 월광 소나타<br>(피아노 소나타 14번 3악장)</p>
+        </div>
+    </div>
+    
+
+    <audio id="backgroundMusic" src=""></audio>
+
+    <canvas id="gameCanvas" width="650" height="650"></canvas>
+
+    <script>
+        // 게임 설정
+        const lanes = ['a', 's', 'k', 'l'];
+        const lanePositions = { a: 50, s: 200, k: 350, l: 500 };
+        const noteSpeed = 4;
+        let gameRunning = false;
+        let notes = [];
+        let activeLanes = { a: false, s: false, k: false, l: false };
+        let resultText = "";
+        let resultTimeout = null;
+
+        let score = 0;
+        let combocount = 0;
+        let comboscore = 0;
+        let hitcount = 0;
+        let misscount = 0;
+        let badcount = 0;
+        let nextNoteIndex = 0; // 다음 노트 인덱스
+
+        // 음악 파일 및 하드코딩된 노트 데이터 설정
+        const musicFiles = {
+            img1: { audio: '1.mp3', notes: [ { "time": 1920, "lane": "k" }, { "time": 2160, "lane": "k" }, { "time": 2640, "lane": "k" }, { "time": 3360, "lane": "k" }, { "time": 3600, "lane": "k" }, { "time": 3840, "lane": "k" }, { "time": 4080, "lane": "k" }, { "time": 4560, "lane": "k" }, { "time": 5280, "lane": "k" }, { "time": 5520, "lane": "k" }, { "time": 5760, "lane": "k" }, { "time": 6000, "lane": "k" }, { "time": 6480, "lane": "k" }, { "time": 7200, "lane": "k" }, { "time": 7440, "lane": "k" }, { "time": 7680, "lane": "k" }, { "time": 7920, "lane": "k" }, { "time": 8400, "lane": "k" }, { "time": 9120, "lane": "k" }, { "time": 9360, "lane": "k" }, { "time": 9600, "lane": "k" }, { "time": 13440, "lane": "k" }, { "time": 19200, "lane": "l" }, { "time": 19440, "lane": "a" }, { "time": 19680, "lane": "s" }, { "time": 19920, "lane": "k" }, { "time": 20160, "lane": "k" }, { "time": 20400, "lane": "k" }, { "time": 20640, "lane": "k" }, { "time": 20880, "lane": "k" }, { "time": 21120, "lane": "k" }, { "time": 21360, "lane": "a" }, { "time": 21600, "lane": "k" }, { "time": 21840, "lane": "k" }, { "time": 22080, "lane": "k" }, { "time": 22320, "lane": "k" }, { "time": 22560, "lane": "k" }, { "time": 22800, "lane": "a" }, { "time": 23040, "lane": "k" }, { "time": 23280, "lane": "a" }, { "time": 23520, "lane": "k" }, { "time": 23760, "lane": "k" }, { "time": 24000, "lane": "k" }, { "time": 24240, "lane": "k" }, { "time": 24480, "lane": "k" }, { "time": 24720, "lane": "k" }, { "time": 24960, "lane": "k" }, { "time": 25200, "lane": "a" }, { "time": 25440, "lane": "k" }, { "time": 25680, "lane": "k" }, { "time": 25920, "lane": "k" }, { "time": 26160, "lane": "k" }, { "time": 26400, "lane": "k" }, { "time": 26640, "lane": "a" }, { "time": 26880, "lane": "k" }, { "time": 27120, "lane": "a" }, { "time": 27360, "lane": "k" }, { "time": 27600, "lane": "k" }, { "time": 27840, "lane": "k" }, { "time": 28080, "lane": "k" }, { "time": 28320, "lane": "k" }, { "time": 28560, "lane": "k" }, { "time": 28800, "lane": "k" }, { "time": 29040, "lane": "a" }, { "time": 29280, "lane": "k" }, { "time": 29520, "lane": "k" }, { "time": 29760, "lane": "k" }, { "time": 30000, "lane": "k" }, { "time": 30240, "lane": "k" }, { "time": 30480, "lane": "a" }, { "time": 30720, "lane": "k" }, { "time": 30960, "lane": "a" }, { "time": 31200, "lane": "k" }, { "time": 31440, "lane": "k" }, { "time": 31680, "lane": "k" }, { "time": 31920, "lane": "k" }, { "time": 32160, "lane": "k" }, { "time": 32400, "lane": "k" }, { "time": 32640, "lane": "k" }, { "time": 32880, "lane": "a" }, { "time": 33120, "lane": "k" }, { "time": 33360, "lane": "k" }, { "time": 33600, "lane": "k" }, { "time": 33840, "lane": "k" }, { "time": 34080, "lane": "k" }, { "time": 34320, "lane": "a" }, { "time": 34560, "lane": "l" }, { "time": 34800, "lane": "a" }, { "time": 35040, "lane": "k" }, { "time": 35280, "lane": "k" }, { "time": 35520, "lane": "k" }, { "time": 35760, "lane": "k" }, { "time": 36000, "lane": "k" }, { "time": 36240, "lane": "k" }, { "time": 36480, "lane": "k" }, { "time": 36720, "lane": "a" }, { "time": 36960, "lane": "k" }, { "time": 37200, "lane": "k" }, { "time": 37440, "lane": "k" }, { "time": 37680, "lane": "k" }, { "time": 37920, "lane": "k" }, { "time": 38160, "lane": "a" }, { "time": 38400, "lane": "k" }, { "time": 38640, "lane": "a" }, { "time": 38880, "lane": "k" }, { "time": 39120, "lane": "k" }, { "time": 39360, "lane": "k" }, { "time": 39600, "lane": "k" }, { "time": 39840, "lane": "k" }, { "time": 40080, "lane": "k" }, { "time": 40320, "lane": "k" }, { "time": 40560, "lane": "a" }, { "time": 40800, "lane": "k" }, { "time": 41040, "lane": "k" }, { "time": 41280, "lane": "k" }, { "time": 41520, "lane": "k" }, { "time": 41760, "lane": "k" }, { "time": 42000, "lane": "a" }, { "time": 42240, "lane": "k" }, { "time": 42480, "lane": "a" }, { "time": 42720, "lane": "k" }, { "time": 42960, "lane": "k" }, { "time": 43200, "lane": "k" }, { "time": 43440, "lane": "k" }, { "time": 43680, "lane": "k" }, { "time": 43920, "lane": "k" }, { "time": 44160, "lane": "k" }, { "time": 44400, "lane": "a" }, { "time": 44640, "lane": "k" }, { "time": 44880, "lane": "k" }, { "time": 45120, "lane": "k" }, { "time": 45360, "lane": "k" }, { "time": 45600, "lane": "k" }, { "time": 45840, "lane": "a" }, { "time": 46080, "lane": "k" }, { "time": 46320, "lane": "a" }, { "time": 46560, "lane": "k" }, { "time": 46800, "lane": "k" }, { "time": 47040, "lane": "k" }, { "time": 47280, "lane": "k" }, { "time": 47520, "lane": "k" }, { "time": 47760, "lane": "k" }, { "time": 48000, "lane": "k" }, { "time": 48960, "lane": "k" }, { "time": 49200, "lane": "k" }, { "time": 49440, "lane": "k" }, { "time": 49680, "lane": "a" }, { "time": 49920, "lane": "k" }, { "time": 50160, "lane": "a" }, { "time": 50400, "lane": "k" }, { "time": 50640, "lane": "k" }, { "time": 50880, "lane": "k" }, { "time": 51120, "lane": "k" }, { "time": 51360, "lane": "k" }, { "time": 51600, "lane": "k" }, { "time": 51840, "lane": "k" }, { "time": 52080, "lane": "a" }, { "time": 52320, "lane": "k" }, { "time": 52560, "lane": "k" }, { "time": 52800, "lane": "k" }, { "time": 53040, "lane": "k" }, { "time": 53280, "lane": "k" }, { "time": 53520, "lane": "a" }, { "time": 53760, "lane": "k" }, { "time": 54000, "lane": "a" }, { "time": 54240, "lane": "k" }, { "time": 54480, "lane": "k" }, { "time": 54720, "lane": "k" }, { "time": 54960, "lane": "k" }, { "time": 55200, "lane": "k" }, { "time": 55440, "lane": "k" }, { "time": 55680, "lane": "k" }, { "time": 55920, "lane": "a" }, { "time": 56160, "lane": "k" }, { "time": 56400, "lane": "k" }, { "time": 56640, "lane": "k" }, { "time": 56880, "lane": "k" }, { "time": 57120, "lane": "k" }, { "time": 57360, "lane": "a" }, { "time": 57600, "lane": "k" }, { "time": 57840, "lane": "a" }, { "time": 58080, "lane": "k" }, { "time": 58320, "lane": "k" }, { "time": 58560, "lane": "k" }, { "time": 58800, "lane": "k" }, { "time": 59040, "lane": "k" }, { "time": 59280, "lane": "k" }, { "time": 59520, "lane": "k" }, { "time": 59760, "lane": "a" }, { "time": 60000, "lane": "k" }, { "time": 60240, "lane": "k" }, { "time": 60480, "lane": "k" }, { "time": 60720, "lane": "k" }, { "time": 60960, "lane": "k" }, { "time": 61200, "lane": "a" }, { "time": 61440, "lane": "k" }, { "time": 61680, "lane": "a" }, { "time": 61920, "lane": "k" }, { "time": 62160, "lane": "k" }, { "time": 62400, "lane": "k" }, { "time": 62640, "lane": "k" }, { "time": 62880, "lane": "k" }, { "time": 63120, "lane": "k" }, { "time": 63360, "lane": "k" }, { "time": 63600, "lane": "a" }, { "time": 63840, "lane": "k" }, { "time": 64080, "lane": "k" }, { "time": 64320, "lane": "k" }, { "time": 64560, "lane": "k" }, { "time": 64800, "lane": "k" }, { "time": 65040, "lane": "a" }, { "time": 65280, "lane": "l" }, { "time": 65520, "lane": "a" }, { "time": 65760, "lane": "k" }, { "time": 66000, "lane": "k" }, { "time": 66240, "lane": "k" }, { "time": 66480, "lane": "k" }, { "time": 66720, "lane": "k" }, { "time": 66960, "lane": "k" }, { "time": 67200, "lane": "k" }, { "time": 67440, "lane": "a" }, { "time": 67680, "lane": "k" }, { "time": 67920, "lane": "k" }, { "time": 68160, "lane": "k" }, { "time": 68400, "lane": "k" }, { "time": 68640, "lane": "k" }, { "time": 68880, "lane": "a" }, { "time": 69120, "lane": "k" }, { "time": 69360, "lane": "a" }, { "time": 69600, "lane": "k" }, { "time": 69840, "lane": "k" }, { "time": 70080, "lane": "k" }, { "time": 70320, "lane": "k" }, { "time": 70560, "lane": "k" }, { "time": 70800, "lane": "k" }, { "time": 71040, "lane": "k" }, { "time": 71280, "lane": "a" }, { "time": 71520, "lane": "k" }, { "time": 71760, "lane": "k" }, { "time": 72000, "lane": "k" }, { "time": 72240, "lane": "k" }, { "time": 72480, "lane": "k" }, { "time": 72720, "lane": "a" }, { "time": 72960, "lane": "k" }, { "time": 73200, "lane": "a" }, { "time": 73440, "lane": "k" }, { "time": 73680, "lane": "k" }, { "time": 73920, "lane": "k" }, { "time": 74160, "lane": "k" }, { "time": 74400, "lane": "k" }, { "time": 74640, "lane": "k" }, { "time": 74880, "lane": "k" }, { "time": 75120, "lane": "a" }, { "time": 75360, "lane": "k" }, { "time": 75600, "lane": "k" }, { "time": 75840, "lane": "k" }, { "time": 76080, "lane": "k" }, { "time": 76320, "lane": "k" }, { "time": 76560, "lane": "a" }, { "time": 76800, "lane": "k" }, { "time": 77040, "lane": "a" }, { "time": 77280, "lane": "k" }, { "time": 77520, "lane": "k" }, { "time": 77760, "lane": "k" }, { "time": 78000, "lane": "k" }, { "time": 78240, "lane": "k" }, { "time": 78480, "lane": "k" }, { "time": 78720, "lane": "k" }, { "time": 78960, "lane": "a" }, { "time": 79200, "lane": "k" }, { "time": 79440, "lane": "k" }, { "time": 79680, "lane": "k" }, { "time": 79920, "lane": "k" }, { "time": 80160, "lane": "k" }, { "time": 80400, "lane": "a" }, { "time": 80640, "lane": "l" }, { "time": 80880, "lane": "a" }, { "time": 81120, "lane": "k" }, { "time": 81360, "lane": "k" }, { "time": 81600, "lane": "k" }, { "time": 81840, "lane": "k" }, { "time": 82080, "lane": "k" }, { "time": 82320, "lane": "k" }, { "time": 82560, "lane": "k" }, { "time": 82800, "lane": "a" }, { "time": 83040, "lane": "k" }, { "time": 83280, "lane": "k" }, { "time": 83520, "lane": "k" }, { "time": 83760, "lane": "k" }, { "time": 84000, "lane": "k" }, { "time": 84240, "lane": "a" }, { "time": 84480, "lane": "k" }, { "time": 84720, "lane": "a" }, { "time": 84960, "lane": "k" }, { "time": 85200, "lane": "k" }, { "time": 85440, "lane": "k" }, { "time": 85680, "lane": "k" }, { "time": 85920, "lane": "k" }, { "time": 86160, "lane": "k" }, { "time": 86400, "lane": "k" }, { "time": 86640, "lane": "a" }, { "time": 86880, "lane": "k" }, { "time": 87120, "lane": "k" }, { "time": 87360, "lane": "k" }, { "time": 87600, "lane": "k" }, { "time": 87840, "lane": "k" }, { "time": 88080, "lane": "a" }, { "time": 88320, "lane": "k" }, { "time": 88560, "lane": "a" }, { "time": 88800, "lane": "k" }, { "time": 89040, "lane": "k" }, { "time": 89280, "lane": "k" }, { "time": 89520, "lane": "k" }, { "time": 89760, "lane": "k" }, { "time": 90000, "lane": "k" }, { "time": 90240, "lane": "k" }, { "time": 90480, "lane": "a" }, { "time": 90720, "lane": "k" }, { "time": 90960, "lane": "k" }, { "time": 91200, "lane": "k" }, { "time": 91440, "lane": "k" }, { "time": 91680, "lane": "k" }, { "time": 91920, "lane": "a" }, { "time": 92160, "lane": "k" }, { "time": 92400, "lane": "a" }, { "time": 92640, "lane": "k" }, { "time": 92880, "lane": "k" }, { "time": 93120, "lane": "k" }, { "time": 93360, "lane": "k" }, { "time": 93600, "lane": "k" }, { "time": 93840, "lane": "k" }, { "time": 94080, "lane": "k" }, { "time": 95040, "lane": "k" }, { "time": 95280, "lane": "k" }, { "time": 95520, "lane": "k" }, { "time": 95760, "lane": "a" }, { "time": 96000, "lane": "l" }, { "time": 96240, "lane": "a" }, { "time": 96480, "lane": "k" }, { "time": 96720, "lane": "k" }, { "time": 96960, "lane": "k" }, { "time": 97200, "lane": "k" }, { "time": 97440, "lane": "k" }, { "time": 97680, "lane": "k" }, { "time": 97920, "lane": "k" }, { "time": 98160, "lane": "a" }, { "time": 98400, "lane": "k" }, { "time": 98640, "lane": "k" }, { "time": 98880, "lane": "k" }, { "time": 99120, "lane": "k" }, { "time": 99360, "lane": "k" }, { "time": 99600, "lane": "a" }, { "time": 99840, "lane": "k" }, { "time": 100080, "lane": "a" }, { "time": 100320, "lane": "k" }, { "time": 100560, "lane": "k" }, { "time": 100800, "lane": "k" }, { "time": 101040, "lane": "k" }, { "time": 101280, "lane": "k" }, { "time": 101520, "lane": "k" }, { "time": 101760, "lane": "k" }, { "time": 102000, "lane": "a" }, { "time": 102240, "lane": "k" }, { "time": 102480, "lane": "k" }, { "time": 102720, "lane": "k" }, { "time": 102960, "lane": "k" }, { "time": 103200, "lane": "k" }, { "time": 103440, "lane": "a" }, { "time": 103680, "lane": "k" }, { "time": 103920, "lane": "a" }, { "time": 104160, "lane": "k" }, { "time": 104400, "lane": "k" }, { "time": 104640, "lane": "k" }, { "time": 104880, "lane": "k" }, { "time": 105120, "lane": "k" }, { "time": 105360, "lane": "k" }, { "time": 105600, "lane": "k" }, { "time": 105840, "lane": "a" }, { "time": 106080, "lane": "k" }, { "time": 106320, "lane": "k" }, { "time": 106560, "lane": "k" }, { "time": 106800, "lane": "k" }, { "time": 107040, "lane": "k" }, { "time": 107280, "lane": "a" }, { "time": 107520, "lane": "k" }, { "time": 107760, "lane": "a" }, { "time": 108000, "lane": "k" }, { "time": 108240, "lane": "k" }, { "time": 108480, "lane": "k" }, { "time": 108720, "lane": "k" }, { "time": 108960, "lane": "k" }, { "time": 109200, "lane": "k" }, { "time": 109440, "lane": "l" }, { "time": 110400, "lane": "k" }, { "time": 110640, "lane": "k" }, { "time": 110880, "lane": "k" }, { "time": 111120, "lane": "a" }, { "time": 111360, "lane": "l" }, { "time": 111600, "lane": "a" }, { "time": 111840, "lane": "k" }, { "time": 112080, "lane": "k" }, { "time": 112320, "lane": "k" }, { "time": 112560, "lane": "k" }, { "time": 112800, "lane": "k" }, { "time": 113040, "lane": "k" }, { "time": 113280, "lane": "k" }, { "time": 113520, "lane": "a" }, { "time": 113760, "lane": "k" }, { "time": 114000, "lane": "k" }, { "time": 114240, "lane": "k" }, { "time": 114480, "lane": "k" }, { "time": 114720, "lane": "k" }, { "time": 114960, "lane": "a" }, { "time": 115200, "lane": "k" }, { "time": 115440, "lane": "a" }, { "time": 115680, "lane": "k" }, { "time": 115920, "lane": "k" }, { "time": 116160, "lane": "k" }, { "time": 116400, "lane": "k" }, { "time": 116640, "lane": "k" }, { "time": 116880, "lane": "k" }, { "time": 117120, "lane": "k" }, { "time": 117360, "lane": "a" }, { "time": 117600, "lane": "k" }, { "time": 117840, "lane": "k" }, { "time": 118080, "lane": "k" }, { "time": 118320, "lane": "k" }, { "time": 118560, "lane": "k" }, { "time": 118800, "lane": "a" }, { "time": 119040, "lane": "k" }, { "time": 119280, "lane": "a" }, { "time": 119520, "lane": "k" }, { "time": 119760, "lane": "k" }, { "time": 120000, "lane": "k" }, { "time": 120240, "lane": "k" }, { "time": 120480, "lane": "k" }, { "time": 120720, "lane": "k" }, { "time": 120960, "lane": "k" }, { "time": 121200, "lane": "a" }, { "time": 121440, "lane": "k" }, { "time": 121680, "lane": "k" }, { "time": 121920, "lane": "k" }, { "time": 122160, "lane": "k" }, { "time": 122400, "lane": "k" }, { "time": 122640, "lane": "a" }, { "time": 122880, "lane": "k" }, { "time": 123120, "lane": "a" }, { "time": 123360, "lane": "k" }, { "time": 123600, "lane": "k" }, { "time": 123840, "lane": "k" }, { "time": 124080, "lane": "k" }, { "time": 124320, "lane": "k" }, { "time": 124560, "lane": "k" }, { "time": 124800, "lane": "k" }, { "time": 125040, "lane": "a" }, { "time": 125280, "lane": "k" }, { "time": 125520, "lane": "k" }, { "time": 125760, "lane": "k" }, { "time": 126000, "lane": "k" }, { "time": 126240, "lane": "k" }, { "time": 126480, "lane": "a" }, { "time": 126720, "lane": "l" }, { "time": 126960, "lane": "a" }, { "time": 127200, "lane": "k" }, { "time": 127440, "lane": "k" }, { "time": 127680, "lane": "k" }, { "time": 127920, "lane": "k" }, { "time": 128160, "lane": "k" }, { "time": 128400, "lane": "k" }, { "time": 128640, "lane": "k" }, { "time": 128880, "lane": "a" }, { "time": 129120, "lane": "k" }, { "time": 129360, "lane": "k" }, { "time": 129600, "lane": "k" }, { "time": 129840, "lane": "k" }, { "time": 130080, "lane": "k" }, { "time": 130320, "lane": "a" }, { "time": 130560, "lane": "k" }, { "time": 130800, "lane": "a" }, { "time": 131040, "lane": "k" }, { "time": 131280, "lane": "k" }, { "time": 131520, "lane": "k" }, { "time": 131760, "lane": "k" }, { "time": 132000, "lane": "k" }, { "time": 132240, "lane": "k" }, { "time": 132480, "lane": "k" }, { "time": 132720, "lane": "a" }, { "time": 132960, "lane": "k" }, { "time": 133200, "lane": "k" }, { "time": 133440, "lane": "k" }, { "time": 133680, "lane": "k" }, { "time": 133920, "lane": "k" }, { "time": 134160, "lane": "a" }, { "time": 134400, "lane": "k" }, { "time": 134640, "lane": "a" }, { "time": 134880, "lane": "k" }, { "time": 135120, "lane": "k" }, { "time": 135360, "lane": "k" }, { "time": 135600, "lane": "k" }, { "time": 135840, "lane": "k" }, { "time": 136080, "lane": "k" }, { "time": 136320, "lane": "k" }, { "time": 136560, "lane": "a" }, { "time": 136800, "lane": "k" }, { "time": 137040, "lane": "k" }, { "time": 137280, "lane": "k" }, { "time": 137520, "lane": "k" }, { "time": 137760, "lane": "k" }, { "time": 138000, "lane": "a" }, { "time": 138240, "lane": "k" }, { "time": 138480, "lane": "a" }, { "time": 138720, "lane": "k" }, { "time": 138960, "lane": "k" }, { "time": 139200, "lane": "k" }, { "time": 139440, "lane": "k" }, { "time": 139680, "lane": "k" }, { "time": 139920, "lane": "k" }, { "time": 140160, "lane": "k" }, { "time": 141120, "lane": "k" }, { "time": 141360, "lane": "k" }, { "time": 141600, "lane": "k" }, { "time": 141840, "lane": "a" }, { "time": 142080, "lane": "l" }, { "time": 142320, "lane": "a" }, { "time": 142560, "lane": "k" }, { "time": 142800, "lane": "k" }, { "time": 143040, "lane": "k" }, { "time": 143280, "lane": "k" }, { "time": 143520, "lane": "k" }, { "time": 143760, "lane": "k" }, { "time": 144000, "lane": "k" }, { "time": 144240, "lane": "a" }, { "time": 144480, "lane": "k" }, { "time": 144720, "lane": "k" }, { "time": 144960, "lane": "k" }, { "time": 145200, "lane": "k" }, { "time": 145440, "lane": "k" }, { "time": 145680, "lane": "a" }, { "time": 145920, "lane": "k" }, { "time": 146160, "lane": "a" }, { "time": 146400, "lane": "k" }, { "time": 146640, "lane": "k" }, { "time": 146880, "lane": "k" }, { "time": 147120, "lane": "k" }, { "time": 147360, "lane": "k" }, { "time": 147600, "lane": "k" }, { "time": 147840, "lane": "k" }, { "time": 148080, "lane": "a" }, { "time": 148320, "lane": "k" }, { "time": 148560, "lane": "k" }, { "time": 148800, "lane": "k" }, { "time": 149040, "lane": "k" }, { "time": 149280, "lane": "k" }, { "time": 149520, "lane": "a" }, { "time": 149760, "lane": "k" }, { "time": 150000, "lane": "a" }, { "time": 150240, "lane": "k" }, { "time": 150480, "lane": "k" }, { "time": 150720, "lane": "k" }, { "time": 150960, "lane": "k" }, { "time": 151200, "lane": "k" }, { "time": 151440, "lane": "k" }, { "time": 151680, "lane": "k" }, { "time": 151920, "lane": "a" }, { "time": 152160, "lane": "k" }, { "time": 152400, "lane": "k" }, { "time": 152640, "lane": "k" }, { "time": 152880, "lane": "k" }, { "time": 153120, "lane": "k" }, { "time": 153360, "lane": "a" }, { "time": 153600, "lane": "k" }, { "time": 153840, "lane": "a" }, { "time": 154080, "lane": "k" }, { "time": 154320, "lane": "k" }, { "time": 154560, "lane": "k" }, { "time": 154800, "lane": "k" }, { "time": 155040, "lane": "k" }, { "time": 155280, "lane": "k" }, { "time": 155520, "lane": "k" }, { "time": 155760, "lane": "a" }, { "time": 156000, "lane": "k" }, { "time": 156240, "lane": "k" }, { "time": 156480, "lane": "k" }, { "time": 156720, "lane": "k" }, { "time": 156960, "lane": "k" }, { "time": 157200, "lane": "a" }, { "time": 157440, "lane": "l" }, { "time": 157680, "lane": "a" }, { "time": 157920, "lane": "k" }, { "time": 158160, "lane": "k" }, { "time": 158400, "lane": "k" }, { "time": 158640, "lane": "k" }, { "time": 158880, "lane": "k" }, { "time": 159120, "lane": "k" }, { "time": 159360, "lane": "k" }, { "time": 159600, "lane": "a" }, { "time": 159840, "lane": "k" }, { "time": 160080, "lane": "k" }, { "time": 160320, "lane": "k" }, { "time": 160560, "lane": "k" }, { "time": 160800, "lane": "k" }, { "time": 161040, "lane": "a" }, { "time": 161280, "lane": "k" }, { "time": 161520, "lane": "a" }, { "time": 161760, "lane": "k" }, { "time": 162000, "lane": "k" }, { "time": 162240, "lane": "k" }, { "time": 162480, "lane": "k" }, { "time": 162720, "lane": "k" }, { "time": 162960, "lane": "k" }, { "time": 163200, "lane": "k" }, { "time": 163440, "lane": "a" }, { "time": 163680, "lane": "k" }, { "time": 163920, "lane": "k" }, { "time": 164160, "lane": "k" }, { "time": 164400, "lane": "k" }, { "time": 164640, "lane": "k" }, { "time": 164880, "lane": "a" }, { "time": 165120, "lane": "k" }, { "time": 165360, "lane": "a" }, { "time": 165600, "lane": "k" }, { "time": 165840, "lane": "k" }, { "time": 166080, "lane": "k" }, { "time": 166320, "lane": "k" }, { "time": 166560, "lane": "k" }, { "time": 166800, "lane": "k" }, { "time": 167040, "lane": "k" }, { "time": 167280, "lane": "a" }, { "time": 167520, "lane": "k" }, { "time": 167760, "lane": "k" }, { "time": 168000, "lane": "k" }, { "time": 168240, "lane": "k" }, { "time": 168480, "lane": "k" }, { "time": 168720, "lane": "a" }, { "time": 168960, "lane": "k" }, { "time": 169200, "lane": "a" }, { "time": 169440, "lane": "k" }, { "time": 169680, "lane": "k" }, { "time": 169920, "lane": "k" }, { "time": 170160, "lane": "k" }, { "time": 170400, "lane": "k" }, { "time": 170640, "lane": "k" }, { "time": 170880, "lane": "l" }, { "time": 171840, "lane": "k" }, { "time": 172080, "lane": "k" }, { "time": 172320, "lane": "k" }, { "time": 172560, "lane": "a" }, { "time": 172800, "lane": "l" }, { "time": 173040, "lane": "a" }, { "time": 173280, "lane": "k" }, { "time": 173520, "lane": "k" }, { "time": 173760, "lane": "k" }, { "time": 174000, "lane": "k" }, { "time": 174240, "lane": "k" }, { "time": 174480, "lane": "k" }, { "time": 174720, "lane": "k" }, { "time": 174960, "lane": "a" }, { "time": 175200, "lane": "k" }, { "time": 175440, "lane": "k" }, { "time": 175680, "lane": "k" }, { "time": 175920, "lane": "k" }, { "time": 176160, "lane": "k" }, { "time": 176400, "lane": "a" }, { "time": 176640, "lane": "k" }, { "time": 176880, "lane": "a" }, { "time": 177120, "lane": "k" }, { "time": 177360, "lane": "k" }, { "time": 177600, "lane": "k" }, { "time": 177840, "lane": "k" }, { "time": 178080, "lane": "k" }, { "time": 178320, "lane": "k" }, { "time": 178560, "lane": "k" }, { "time": 178800, "lane": "a" }, { "time": 179040, "lane": "k" }, { "time": 179280, "lane": "k" }, { "time": 179520, "lane": "k" }, { "time": 179760, "lane": "k" }, { "time": 180000, "lane": "k" }, { "time": 180240, "lane": "a" }, { "time": 180480, "lane": "k" }, { "time": 180720, "lane": "a" }, { "time": 180960, "lane": "k" }, { "time": 181200, "lane": "k" }, { "time": 181440, "lane": "k" }, { "time": 181680, "lane": "k" }, { "time": 181920, "lane": "k" }, { "time": 182160, "lane": "k" }, { "time": 182400, "lane": "k" }, { "time": 182640, "lane": "a" }, { "time": 182880, "lane": "k" }, { "time": 183120, "lane": "k" }, { "time": 183360, "lane": "k" }, { "time": 183600, "lane": "k" }, { "time": 183840, "lane": "k" }, { "time": 184080, "lane": "a" }, { "time": 184320, "lane": "k" }, { "time": 184560, "lane": "a" }, { "time": 184800, "lane": "k" }, { "time": 185040, "lane": "k" }, { "time": 185280, "lane": "k" }, { "time": 185520, "lane": "k" }, { "time": 185760, "lane": "k" }, { "time": 186000, "lane": "k" }, { "time": 186240, "lane": "l" }, { "time": 187200, "lane": "k" }, { "time": 187440, "lane": "k" }, { "time": 187680, "lane": "k" }, { "time": 187920, "lane": "a" }, { "time": 188160, "lane": "l" }, { "time": 188400, "lane": "a" }, { "time": 188640, "lane": "k" }, { "time": 188880, "lane": "k" }, { "time": 189120, "lane": "k" }, { "time": 189360, "lane": "k" }, { "time": 189600, "lane": "k" }, { "time": 189840, "lane": "k" }, { "time": 190080, "lane": "k" }, { "time": 190320, "lane": "a" }, { "time": 190560, "lane": "k" }, { "time": 190800, "lane": "k" }, { "time": 191040, "lane": "k" }, { "time": 191280, "lane": "k" }, { "time": 191520, "lane": "k" }, { "time": 191760, "lane": "a" }, { "time": 192000, "lane": "k" }, { "time": 192240, "lane": "a" }, { "time": 192480, "lane": "k" }, { "time": 192720, "lane": "k" }, { "time": 192960, "lane": "k" }, { "time": 193200, "lane": "k" }, { "time": 193440, "lane": "k" }, { "time": 193680, "lane": "k" }, { "time": 193920, "lane": "k" }, { "time": 194160, "lane": "a" }, { "time": 194400, "lane": "k" }, { "time": 194640, "lane": "k" }, { "time": 194880, "lane": "k" }, { "time": 195120, "lane": "k" }, { "time": 195360, "lane": "k" }, { "time": 195600, "lane": "a" }, { "time": 195840, "lane": "k" }, { "time": 196080, "lane": "a" }, { "time": 196320, "lane": "k" }, { "time": 196560, "lane": "k" }, { "time": 196800, "lane": "k" }, { "time": 197040, "lane": "k" }, { "time": 197280, "lane": "k" }, { "time": 197520, "lane": "k" }, { "time": 197760, "lane": "k" }, { "time": 198000, "lane": "a" }, { "time": 198240, "lane": "k" }, { "time": 198480, "lane": "k" }, { "time": 198720, "lane": "k" }, { "time": 198960, "lane": "k" }, { "time": 199200, "lane": "k" }, { "time": 199440, "lane": "a" }, { "time": 199680, "lane": "k" }, { "time": 199920, "lane": "a" }, { "time": 200160, "lane": "k" }, { "time": 200400, "lane": "k" }, { "time": 200640, "lane": "k" }, { "time": 200880, "lane": "k" }, { "time": 201120, "lane": "k" }, { "time": 201360, "lane": "k" }, { "time": 201600, "lane": "l" }, { "time": 202560, "lane": "k" }, { "time": 202800, "lane": "k" }, { "time": 203040, "lane": "k" }, { "time": 203280, "lane": "a" }, { "time": 203520, "lane": "s" }, { "time": 203760, "lane": "k" }, { "time": 204240, "lane": "k" }, { "time": 204960, "lane": "k" }, { "time": 205200, "lane": "k" }, { "time": 205440, "lane": "k" }, { "time": 205680, "lane": "k" }, { "time": 206160, "lane": "k" }, { "time": 206880, "lane": "k" } ]},
+            img2: { audio: '2.mp3', notes: [ { "time": 240, "lane": "k" }, { "time": 600, "lane": "k" }, { "time": 960, "lane": "k" }, { "time": 1320, "lane": "k" }, { "time": 1680, "lane": "k" }, { "time": 2040, "lane": "k" }, { "time": 2400, "lane": "k" }, { "time": 2760, "lane": "k" }, { "time": 3120, "lane": "k" }, { "time": 3480, "lane": "k" }, { "time": 3960, "lane": "a" }, { "time": 4320, "lane": "a" }, { "time": 4680, "lane": "a" }, { "time": 5040, "lane": "a" }, { "time": 5400, "lane": "a" }, { "time": 5760, "lane": "a" }, { "time": 6120, "lane": "a" }, { "time": 6480, "lane": "a" }, { "time": 6840, "lane": "a" }, { "time": 7200, "lane": "s" }, { "time": 7560, "lane": "s" }, { "time": 8040, "lane": "a" }, { "time": 8400, "lane": "a" }, { "time": 8760, "lane": "a" }, { "time": 9120, "lane": "a" }, { "time": 9480, "lane": "a" }, { "time": 9840, "lane": "a" }, { "time": 10200, "lane": "a" }, { "time": 10560, "lane": "a" }, { "time": 10920, "lane": "a" }, { "time": 11280, "lane": "a" }, { "time": 11760, "lane": "k" }, { "time": 12240, "lane": "k" }, { "time": 12720, "lane": "k" }, { "time": 13080, "lane": "k" }, { "time": 13560, "lane": "k" }, { "time": 13920, "lane": "k" }, { "time": 14400, "lane": "k" }, { "time": 14880, "lane": "s" }, { "time": 15240, "lane": "k" }, { "time": 15720, "lane": "a" }, { "time": 16080, "lane": "a" }, { "time": 16440, "lane": "s" }, { "time": 16800, "lane": "a" }, { "time": 17160, "lane": "s" }, { "time": 17520, "lane": "a" }, { "time": 17880, "lane": "k" }, { "time": 18240, "lane": "a" }, { "time": 18600, "lane": "k" }, { "time": 18960, "lane": "a" }, { "time": 19320, "lane": "a" }, { "time": 19680, "lane": "a" }, { "time": 20040, "lane": "a" }, { "time": 20400, "lane": "a" }, { "time": 20760, "lane": "s" }, { "time": 21120, "lane": "a" }, { "time": 21480, "lane": "k" }, { "time": 21840, "lane": "a" }, { "time": 22200, "lane": "s" }, { "time": 22560, "lane": "a" }, { "time": 22920, "lane": "l" }, { "time": 23280, "lane": "a" }, { "time": 23640, "lane": "a" }, { "time": 24000, "lane": "s" }, { "time": 24360, "lane": "l" }, { "time": 24720, "lane": "a" }, { "time": 25200, "lane": "a" }, { "time": 27000, "lane": "a" }, { "time": 27360, "lane": "a" }, { "time": 27720, "lane": "a" }, { "time": 28080, "lane": "a" }, { "time": 28440, "lane": "a" }, { "time": 28800, "lane": "a" }, { "time": 29160, "lane": "a" }, { "time": 29520, "lane": "a" }, { "time": 29880, "lane": "l" }, { "time": 30240, "lane": "l" }, { "time": 30600, "lane": "l" }, { "time": 31080, "lane": "k" }, { "time": 31440, "lane": "k" }, { "time": 31800, "lane": "k" }, { "time": 32160, "lane": "k" }, { "time": 32520, "lane": "k" }, { "time": 32880, "lane": "k" }, { "time": 33240, "lane": "k" }, { "time": 33600, "lane": "k" }, { "time": 33960, "lane": "k" }, { "time": 34320, "lane": "l" }, { "time": 34800, "lane": "a" }, { "time": 35160, "lane": "a" }, { "time": 35520, "lane": "a" }, { "time": 35880, "lane": "a" }, { "time": 36240, "lane": "a" }, { "time": 36600, "lane": "a" }, { "time": 36960, "lane": "a" }, { "time": 37320, "lane": "a" }, { "time": 37680, "lane": "s" }, { "time": 38040, "lane": "s" }, { "time": 38400, "lane": "a" }, { "time": 39840, "lane": "a" }, { "time": 41520, "lane": "s" }, { "time": 42720, "lane": "a" }, { "time": 44040, "lane": "a" }, { "time": 45600, "lane": "s" }, { "time": 46200, "lane": "a" }, { "time": 47280, "lane": "s" }, { "time": 47640, "lane": "a" }, { "time": 48000, "lane": "a" }, { "time": 48720, "lane": "s" }, { "time": 49440, "lane": "s" }, { "time": 49800, "lane": "s" }, { "time": 50160, "lane": "a" }, { "time": 51240, "lane": "a" }, { "time": 51600, "lane": "a" }, { "time": 51960, "lane": "a" }, { "time": 53040, "lane": "a" }, { "time": 53400, "lane": "s" }, { "time": 53760, "lane": "s" }, { "time": 57600, "lane": "a" }, { "time": 61440, "lane": "a" }, { "time": 62760, "lane": "k" }, { "time": 63120, "lane": "a" }, { "time": 63480, "lane": "l" }, { "time": 63840, "lane": "a" }, { "time": 64200, "lane": "k" }, { "time": 64560, "lane": "l" }, { "time": 64920, "lane": "l" }, { "time": 65280, "lane": "a" }, { "time": 65640, "lane": "k" }, { "time": 66000, "lane": "a" }, { "time": 66360, "lane": "l" }, { "time": 66720, "lane": "s" }, { "time": 67080, "lane": "a" }, { "time": 69360, "lane": "a" }, { "time": 70320, "lane": "l" }, { "time": 70680, "lane": "l" }, { "time": 71040, "lane": "a" }, { "time": 71400, "lane": "k" }, { "time": 71760, "lane": "a" }, { "time": 72120, "lane": "l" }, { "time": 72480, "lane": "a" }, { "time": 72840, "lane": "k" }, { "time": 73200, "lane": "l" }, { "time": 73560, "lane": "l" }, { "time": 73920, "lane": "a" }, { "time": 74280, "lane": "k" }, { "time": 74640, "lane": "a" }, { "time": 75000, "lane": "l" }, { "time": 75360, "lane": "a" }, { "time": 75720, "lane": "k" }, { "time": 76080, "lane": "k" }, { "time": 76440, "lane": "a" }, { "time": 76800, "lane": "s" }, { "time": 79680, "lane": "a" }, { "time": 81000, "lane": "a" }, { "time": 81360, "lane": "s" }, { "time": 81720, "lane": "a" }, { "time": 82080, "lane": "a" }, { "time": 82440, "lane": "s" }, { "time": 83040, "lane": "s" }, { "time": 83760, "lane": "s" }, { "time": 84480, "lane": "s" }, { "time": 85200, "lane": "a" }, { "time": 85920, "lane": "s" }, { "time": 86640, "lane": "s" }, { "time": 87360, "lane": "s" }, { "time": 88080, "lane": "s" }, { "time": 88560, "lane": "s" }, { "time": 89040, "lane": "a" }, { "time": 89640, "lane": "k" }, { "time": 90240, "lane": "k" }, { "time": 90720, "lane": "s" }, { "time": 91440, "lane": "a" }, { "time": 91920, "lane": "s" }, { "time": 92640, "lane": "s" }, { "time": 93360, "lane": "s" }, { "time": 94080, "lane": "a" }, { "time": 94800, "lane": "l" }, { "time": 95520, "lane": "l" }, { "time": 96240, "lane": "a" }, { "time": 96960, "lane": "s" }, { "time": 97680, "lane": "a" }, { "time": 98400, "lane": "l" }, { "time": 99120, "lane": "l" }, { "time": 99840, "lane": "k" }, { "time": 100320, "lane": "a" }, { "time": 101040, "lane": "k" }, { "time": 101520, "lane": "k" }, { "time": 102120, "lane": "a" }, { "time": 102720, "lane": "s" }, { "time": 103200, "lane": "s" }, { "time": 103920, "lane": "s" }, { "time": 104400, "lane": "a" }, { "time": 105000, "lane": "k" }, { "time": 105600, "lane": "k" }, { "time": 106080, "lane": "a" }, { "time": 106800, "lane": "s" }, { "time": 107280, "lane": "s" }, { "time": 108960, "lane": "a" }, { "time": 110280, "lane": "s" }, { "time": 110880, "lane": "s" }, { "time": 113160, "lane": "a" }, { "time": 114120, "lane": "s" }, { "time": 114720, "lane": "s" }, { "time": 117000, "lane": "s" }, { "time": 119160, "lane": "a" }, { "time": 119520, "lane": "a" }, { "time": 119880, "lane": "a" }, { "time": 120240, "lane": "s" }, { "time": 120600, "lane": "a" }, { "time": 120960, "lane": "s" }, { "time": 121320, "lane": "k" }, { "time": 121680, "lane": "s" }, { "time": 122040, "lane": "k" }, { "time": 122400, "lane": "s" }, { "time": 122760, "lane": "k" }, { "time": 123120, "lane": "k" }, { "time": 123480, "lane": "k" }, { "time": 123840, "lane": "k" }, { "time": 124200, "lane": "k" }, { "time": 124560, "lane": "k" }, { "time": 124920, "lane": "k" }, { "time": 125280, "lane": "k" }, { "time": 125640, "lane": "k" }, { "time": 126000, "lane": "k" }, { "time": 126360, "lane": "a" }, { "time": 126840, "lane": "a" }, { "time": 127200, "lane": "a" }, { "time": 127560, "lane": "a" }, { "time": 127920, "lane": "a" }, { "time": 128280, "lane": "a" }, { "time": 128640, "lane": "a" }, { "time": 129000, "lane": "a" }, { "time": 129360, "lane": "a" }, { "time": 129720, "lane": "a" }, { "time": 130080, "lane": "s" }, { "time": 130440, "lane": "a" }, { "time": 130920, "lane": "a" }, { "time": 131280, "lane": "a" }, { "time": 131640, "lane": "a" }, { "time": 132000, "lane": "a" }, { "time": 132360, "lane": "a" }, { "time": 132720, "lane": "a" }, { "time": 133080, "lane": "a" }, { "time": 133440, "lane": "a" }, { "time": 133800, "lane": "a" }, { "time": 134160, "lane": "l" }, { "time": 134640, "lane": "k" }, { "time": 135120, "lane": "k" }, { "time": 135600, "lane": "k" }, { "time": 135960, "lane": "k" }, { "time": 136440, "lane": "k" }, { "time": 136800, "lane": "k" }, { "time": 137280, "lane": "k" }, { "time": 137760, "lane": "s" }, { "time": 138120, "lane": "s" }, { "time": 138600, "lane": "a" }, { "time": 138960, "lane": "a" }, { "time": 139320, "lane": "s" }, { "time": 139680, "lane": "a" }, { "time": 140040, "lane": "s" }, { "time": 140400, "lane": "a" }, { "time": 140760, "lane": "k" }, { "time": 141120, "lane": "a" }, { "time": 141480, "lane": "k" }, { "time": 141840, "lane": "a" }, { "time": 142200, "lane": "a" }, { "time": 142560, "lane": "a" }, { "time": 142920, "lane": "a" }, { "time": 143280, "lane": "a" }, { "time": 143640, "lane": "s" }, { "time": 144000, "lane": "a" }, { "time": 144360, "lane": "k" }, { "time": 144720, "lane": "a" }, { "time": 145080, "lane": "s" }, { "time": 145440, "lane": "a" }, { "time": 145800, "lane": "l" }, { "time": 146160, "lane": "a" }, { "time": 146520, "lane": "a" }, { "time": 146880, "lane": "s" }, { "time": 147240, "lane": "l" }, { "time": 147600, "lane": "a" }, { "time": 148080, "lane": "a" }, { "time": 149880, "lane": "a" }, { "time": 150240, "lane": "a" }, { "time": 150600, "lane": "a" }, { "time": 150960, "lane": "a" }, { "time": 151320, "lane": "a" }, { "time": 151680, "lane": "a" }, { "time": 152040, "lane": "a" }, { "time": 152400, "lane": "a" }, { "time": 152760, "lane": "l" }, { "time": 153120, "lane": "k" }, { "time": 153480, "lane": "l" }, { "time": 153960, "lane": "k" }, { "time": 154320, "lane": "k" }, { "time": 154680, "lane": "k" }, { "time": 155040, "lane": "k" }, { "time": 155400, "lane": "k" }, { "time": 155760, "lane": "k" }, { "time": 156120, "lane": "k" }, { "time": 156480, "lane": "k" }, { "time": 156840, "lane": "k" }, { "time": 157200, "lane": "l" }, { "time": 157680, "lane": "a" }, { "time": 158040, "lane": "a" }, { "time": 158400, "lane": "a" }, { "time": 158760, "lane": "a" }, { "time": 159120, "lane": "a" }, { "time": 159480, "lane": "a" }, { "time": 159840, "lane": "a" }, { "time": 160200, "lane": "a" }, { "time": 160560, "lane": "s" }, { "time": 160920, "lane": "s" }, { "time": 161280, "lane": "a" }, { "time": 162720, "lane": "a" }, { "time": 164400, "lane": "s" }, { "time": 165600, "lane": "a" }, { "time": 166920, "lane": "a" }, { "time": 168240, "lane": "a" }, { "time": 168960, "lane": "a" }, { "time": 170160, "lane": "s" }, { "time": 170520, "lane": "a" }, { "time": 170880, "lane": "a" }, { "time": 171600, "lane": "s" }, { "time": 172320, "lane": "s" }, { "time": 172680, "lane": "s" }, { "time": 173040, "lane": "a" }, { "time": 174120, "lane": "a" }, { "time": 174480, "lane": "a" }, { "time": 174840, "lane": "a" }, { "time": 175920, "lane": "a" }, { "time": 176280, "lane": "s" }, { "time": 176640, "lane": "s" }, { "time": 180480, "lane": "a" }, { "time": 184320, "lane": "a" }, { "time": 185640, "lane": "k" }, { "time": 186000, "lane": "a" }, { "time": 186360, "lane": "l" }, { "time": 186720, "lane": "a" }, { "time": 187080, "lane": "k" }, { "time": 187440, "lane": "l" }, { "time": 187800, "lane": "l" }, { "time": 188160, "lane": "a" }, { "time": 188520, "lane": "k" }, { "time": 188880, "lane": "a" }, { "time": 189240, "lane": "l" }, { "time": 189600, "lane": "s" }, { "time": 189960, "lane": "a" }, { "time": 192240, "lane": "a" }, { "time": 193200, "lane": "l" }, { "time": 193560, "lane": "l" }, { "time": 193920, "lane": "a" }, { "time": 194280, "lane": "k" }, { "time": 194640, "lane": "a" }, { "time": 195000, "lane": "l" }, { "time": 195360, "lane": "a" }, { "time": 195720, "lane": "k" }, { "time": 196080, "lane": "l" }, { "time": 196440, "lane": "l" }, { "time": 196800, "lane": "a" }, { "time": 197160, "lane": "k" }, { "time": 197520, "lane": "a" }, { "time": 197880, "lane": "l" }, { "time": 198240, "lane": "a" }, { "time": 198600, "lane": "k" }, { "time": 198960, "lane": "k" }, { "time": 199320, "lane": "a" }, { "time": 199680, "lane": "s" }, { "time": 202560, "lane": "a" }, { "time": 203880, "lane": "s" }, { "time": 204240, "lane": "s" }, { "time": 204600, "lane": "s" }, { "time": 204960, "lane": "s" }, { "time": 205320, "lane": "s" }, { "time": 205920, "lane": "s" }, { "time": 206640, "lane": "s" }, { "time": 207360, "lane": "s" }, { "time": 208080, "lane": "a" }, { "time": 208800, "lane": "a" }, { "time": 209520, "lane": "s" }, { "time": 210240, "lane": "s" }, { "time": 210960, "lane": "s" }, { "time": 211440, "lane": "a" }, { "time": 211920, "lane": "s" }, { "time": 212520, "lane": "l" }, { "time": 213120, "lane": "a" }, { "time": 213600, "lane": "s" }, { "time": 214320, "lane": "s" }, { "time": 214800, "lane": "a" }, { "time": 215520, "lane": "a" }, { "time": 216240, "lane": "a" }, { "time": 216960, "lane": "a" }, { "time": 217680, "lane": "l" }, { "time": 218400, "lane": "l" }, { "time": 219120, "lane": "a" }, { "time": 219840, "lane": "s" }, { "time": 220560, "lane": "a" }, { "time": 221280, "lane": "l" }, { "time": 222000, "lane": "l" }, { "time": 222720, "lane": "k" }, { "time": 223200, "lane": "a" }, { "time": 223920, "lane": "k" }, { "time": 224400, "lane": "a" }, { "time": 225000, "lane": "a" }, { "time": 225600, "lane": "a" }, { "time": 226080, "lane": "a" }, { "time": 226800, "lane": "a" }, { "time": 227280, "lane": "a" }, { "time": 227880, "lane": "k" }, { "time": 228480, "lane": "k" }, { "time": 228960, "lane": "a" }, { "time": 229680, "lane": "a" }, { "time": 230160, "lane": "s" }, { "time": 231840, "lane": "a" }, { "time": 233160, "lane": "s" }, { "time": 233760, "lane": "s" }, { "time": 236040, "lane": "a" }, { "time": 237000, "lane": "s" }, { "time": 237600, "lane": "s" }, { "time": 239880, "lane": "s" }, { "time": 242040, "lane": "a" }, { "time": 242400, "lane": "a" }, { "time": 242760, "lane": "a" }, { "time": 243120, "lane": "s" }, { "time": 243480, "lane": "a" }, { "time": 243840, "lane": "s" }, { "time": 244200, "lane": "k" }, { "time": 244560, "lane": "s" }, { "time": 244920, "lane": "k" }, { "time": 245280, "lane": "s" }, { "time": 245640, "lane": "k" }, { "time": 246000, "lane": "l" }, { "time": 246360, "lane": "l" }, { "time": 246720, "lane": "l" }, { "time": 247080, "lane": "l" }, { "time": 247440, "lane": "l" }, { "time": 247800, "lane": "l" }, { "time": 248160, "lane": "l" }, { "time": 248520, "lane": "l" }, { "time": 248880, "lane": "l" }, { "time": 249240, "lane": "k" }, { "time": 249720, "lane": "k" }, { "time": 250080, "lane": "k" }, { "time": 250440, "lane": "k" }, { "time": 250800, "lane": "k" }, { "time": 251160, "lane": "k" }, { "time": 251520, "lane": "k" }, { "time": 251880, "lane": "k" }, { "time": 252240, "lane": "k" }, { "time": 252600, "lane": "k" }, { "time": 252960, "lane": "a" }, { "time": 253320, "lane": "k" }, { "time": 253800, "lane": "l" }, { "time": 254280, "lane": "l" }, { "time": 254760, "lane": "l" }, { "time": 255120, "lane": "k" }, { "time": 255600, "lane": "a" }, { "time": 256080, "lane": "a" }, { "time": 256560, "lane": "a" }, { "time": 256920, "lane": "a" }, { "time": 257280, "lane": "k" }, { "time": 258720, "lane": "l" }, { "time": 260400, "lane": "l" }, { "time": 261120, "lane": "l" }, { "time": 262560, "lane": "k" }, { "time": 263520, "lane": "a" }, { "time": 264840, "lane": "k" }, { "time": 265200, "lane": "l" }, { "time": 265560, "lane": "k" }, { "time": 265920, "lane": "k" }, { "time": 266280, "lane": "k" }, { "time": 266640, "lane": "l" }, { "time": 267000, "lane": "k" }, { "time": 267360, "lane": "a" }, { "time": 267720, "lane": "k" }, { "time": 268080, "lane": "a" }, { "time": 268440, "lane": "k" }, { "time": 268800, "lane": "k" }, { "time": 269160, "lane": "k" }, { "time": 269520, "lane": "l" }, { "time": 269880, "lane": "k" }, { "time": 270240, "lane": "k" }, { "time": 270600, "lane": "k" }, { "time": 270960, "lane": "l" }, { "time": 271320, "lane": "k" }, { "time": 271680, "lane": "l" }, { "time": 272040, "lane": "k" }, { "time": 272400, "lane": "s" }, { "time": 272760, "lane": "k" }, { "time": 273120, "lane": "s" }, { "time": 273480, "lane": "k" }, { "time": 273840, "lane": "a" }, { "time": 274200, "lane": "k" }, { "time": 274560, "lane": "l" }, { "time": 274920, "lane": "k" }, { "time": 275280, "lane": "s" }, { "time": 275640, "lane": "k" }, { "time": 276000, "lane": "l" }, { "time": 276360, "lane": "k" }, { "time": 276720, "lane": "a" }, { "time": 277080, "lane": "k" }, { "time": 277440, "lane": "s" }, { "time": 277800, "lane": "k" }, { "time": 278160, "lane": "a" }, { "time": 278520, "lane": "k" }, { "time": 278880, "lane": "a" }, { "time": 279240, "lane": "k" }, { "time": 279600, "lane": "a" }, { "time": 279960, "lane": "k" }, { "time": 280320, "lane": "k" }, { "time": 280680, "lane": "k" }, { "time": 281040, "lane": "l" }, { "time": 281400, "lane": "k" }, { "time": 281760, "lane": "k" }, { "time": 282120, "lane": "k" }, { "time": 282480, "lane": "s" }, { "time": 282840, "lane": "k" }, { "time": 283200, "lane": "k" }, { "time": 283560, "lane": "k" }, { "time": 283920, "lane": "s" }, { "time": 284280, "lane": "l" }, { "time": 284640, "lane": "l" }, { "time": 285000, "lane": "l" }, { "time": 285360, "lane": "k" }, { "time": 285720, "lane": "l" }, { "time": 286080, "lane": "s" }, { "time": 286440, "lane": "s" }, { "time": 286800, "lane": "k" }, { "time": 287160, "lane": "s" }, { "time": 287520, "lane": "s" }, { "time": 287880, "lane": "s" }, { "time": 288480, "lane": "a" }, { "time": 289920, "lane": "a" }, { "time": 290880, "lane": "k" }, { "time": 291840, "lane": "l" }, { "time": 292800, "lane": "s" }, { "time": 293760, "lane": "k" }, { "time": 296120, "lane": "s" }, { "time": 297120, "lane": "l" }, { "time": 297480, "lane": "a" }, { "time": 297840, "lane": "k" }, { "time": 298200, "lane": "s" }, { "time": 298560, "lane": "a" }, { "time": 298920, "lane": "l" }, { "time": 299280, "lane": "l" }, { "time": 299640, "lane": "k" }, { "time": 300000, "lane": "a" }, { "time": 300360, "lane": "s" }, { "time": 300720, "lane": "l" }, { "time": 301080, "lane": "l" }, { "time": 301440, "lane": "s" }, { "time": 304800, "lane": "k" }, { "time": 305760, "lane": "k" }, { "time": 306480, "lane": "k" }, { "time": 307080, "lane": "s" }, { "time": 309120, "lane": "k" }, { "time": 309840, "lane": "k" }, { "time": 310560, "lane": "k" }, { "time": 311280, "lane": "k" }, { "time": 312000, "lane": "s" }, { "time": 312720, "lane": "k" }, { "time": 316800, "lane": "s" }, { "time": 317160, "lane": "l" }, { "time": 317520, "lane": "l" }, { "time": 317880, "lane": "l" }, { "time": 318240, "lane": "l" }, { "time": 318600, "lane": "l" }, { "time": 318960, "lane": "l" }, { "time": 319320, "lane": "l" }, { "time": 319680, "lane": "l" }, { "time": 320040, "lane": "l" }, { "time": 320400, "lane": "a" }, { "time": 320880, "lane": "s" }, { "time": 321240, "lane": "s" }, { "time": 321600, "lane": "s" }, { "time": 321960, "lane": "s" }, { "time": 322320, "lane": "s" }, { "time": 322680, "lane": "s" }, { "time": 323040, "lane": "s" }, { "time": 323400, "lane": "s" }, { "time": 323760, "lane": "s" }, { "time": 324120, "lane": "a" }, { "time": 324600, "lane": "k" }, { "time": 324960, "lane": "k" }, { "time": 325320, "lane": "k" }, { "time": 325680, "lane": "k" }, { "time": 326040, "lane": "k" }, { "time": 326400, "lane": "k" }, { "time": 326760, "lane": "k" }, { "time": 327120, "lane": "k" }, { "time": 327480, "lane": "k" }, { "time": 327840, "lane": "a" }, { "time": 328200, "lane": "k" }, { "time": 328680, "lane": "l" }, { "time": 329160, "lane": "l" }, { "time": 329640, "lane": "l" }, { "time": 330000, "lane": "k" }, { "time": 330480, "lane": "l" }, { "time": 330960, "lane": "l" }, { "time": 331440, "lane": "l" }, { "time": 331800, "lane": "k" }, { "time": 332160, "lane": "a" }, { "time": 332640, "lane": "a" }, { "time": 333000, "lane": "a" }, { "time": 333360, "lane": "a" }, { "time": 333720, "lane": "s" }, { "time": 334080, "lane": "a" }, { "time": 334440, "lane": "k" }, { "time": 334800, "lane": "a" }, { "time": 335160, "lane": "s" }, { "time": 335520, "lane": "a" }, { "time": 335880, "lane": "l" }, { "time": 336240, "lane": "a" }, { "time": 336600, "lane": "a" }, { "time": 336960, "lane": "a" }, { "time": 337320, "lane": "k" }, { "time": 337680, "lane": "a" }, { "time": 338040, "lane": "s" }, { "time": 338400, "lane": "a" }, { "time": 338760, "lane": "l" }, { "time": 339120, "lane": "a" }, { "time": 339480, "lane": "s" }, { "time": 339840, "lane": "s" }, { "time": 340200, "lane": "l" }, { "time": 340560, "lane": "a" }, { "time": 340920, "lane": "a" }, { "time": 341280, "lane": "s" }, { "time": 341640, "lane": "l" }, { "time": 342240, "lane": "a" }, { "time": 345120, "lane": "l" }, { "time": 346800, "lane": "s" }, { "time": 348000, "lane": "k" }, { "time": 349320, "lane": "a" }, { "time": 350640, "lane": "s" }, { "time": 351360, "lane": "s" }, { "time": 352080, "lane": "a" }, { "time": 352800, "lane": "l" }, { "time": 353160, "lane": "k" }, { "time": 353520, "lane": "s" }, { "time": 354600, "lane": "s" }, { "time": 354960, "lane": "s" }, { "time": 355320, "lane": "s" }, { "time": 356400, "lane": "k" }, { "time": 356760, "lane": "a" }, { "time": 357120, "lane": "l" }, { "time": 357840, "lane": "s" }, { "time": 358560, "lane": "a" }, { "time": 358920, "lane": "s" }, { "time": 360960, "lane": "k" }, { "time": 364800, "lane": "k" }, { "time": 367920, "lane": "l" }, { "time": 368280, "lane": "k" }, { "time": 368640, "lane": "l" }, { "time": 369000, "lane": "a" }, { "time": 369360, "lane": "l" }, { "time": 369720, "lane": "k" }, { "time": 370080, "lane": "k" }, { "time": 370440, "lane": "k" }, { "time": 370800, "lane": "l" }, { "time": 371160, "lane": "k" }, { "time": 371520, "lane": "s" }, { "time": 371880, "lane": "l" }, { "time": 372240, "lane": "k" }, { "time": 373440, "lane": "k" }, { "time": 375480, "lane": "k" }, { "time": 375840, "lane": "k" }, { "time": 376200, "lane": "k" }, { "time": 376560, "lane": "l" }, { "time": 376920, "lane": "k" }, { "time": 377280, "lane": "l" }, { "time": 377640, "lane": "a" }, { "time": 378000, "lane": "l" }, { "time": 378360, "lane": "k" }, { "time": 378720, "lane": "k" }, { "time": 379080, "lane": "k" }, { "time": 379440, "lane": "a" }, { "time": 379800, "lane": "l" }, { "time": 380160, "lane": "a" }, { "time": 383040, "lane": "l" }, { "time": 384360, "lane": "l" }, { "time": 384720, "lane": "a" }, { "time": 385080, "lane": "l" }, { "time": 385440, "lane": "s" }, { "time": 385800, "lane": "k" }, { "time": 386400, "lane": "a" }, { "time": 387120, "lane": "s" }, { "time": 387840, "lane": "s" }, { "time": 388560, "lane": "l" }, { "time": 389280, "lane": "a" }, { "time": 390000, "lane": "s" }, { "time": 390720, "lane": "s" }, { "time": 391440, "lane": "k" }, { "time": 391920, "lane": "a" }, { "time": 392400, "lane": "l" }, { "time": 393000, "lane": "l" }, { "time": 393600, "lane": "k" }, { "time": 394080, "lane": "a" }, { "time": 394800, "lane": "a" }, { "time": 395280, "lane": "s" }, { "time": 396000, "lane": "l" }, { "time": 396720, "lane": "l" }, { "time": 397440, "lane": "k" }, { "time": 398160, "lane": "s" }, { "time": 398880, "lane": "s" }, { "time": 399600, "lane": "a" }, { "time": 400320, "lane": "l" }, { "time": 401040, "lane": "s" }, { "time": 401760, "lane": "s" }, { "time": 402480, "lane": "s" }, { "time": 403200, "lane": "k" }, { "time": 403680, "lane": "k" }, { "time": 404400, "lane": "k" }, { "time": 404880, "lane": "k" }, { "time": 405480, "lane": "l" }, { "time": 406080, "lane": "l" }, { "time": 406560, "lane": "a" }, { "time": 407280, "lane": "l" }, { "time": 407760, "lane": "a" }, { "time": 408360, "lane": "l" }, { "time": 408960, "lane": "k" }, { "time": 409440, "lane": "l" }, { "time": 410160, "lane": "s" }, { "time": 410640, "lane": "k" }, { "time": 412320, "lane": "l" }, { "time": 413640, "lane": "a" }, { "time": 414240, "lane": "k" }, { "time": 416520, "lane": "l" }, { "time": 417480, "lane": "s" }, { "time": 418080, "lane": "s" }, { "time": 420360, "lane": "a" }, { "time": 422520, "lane": "k" }, { "time": 422880, "lane": "l" }, { "time": 423240, "lane": "k" }, { "time": 423600, "lane": "a" }, { "time": 423960, "lane": "k" }, { "time": 424320, "lane": "l" }, { "time": 424800, "lane": "l" }, { "time": 425280, "lane": "k" }, { "time": 425760, "lane": "k" }, { "time": 426240, "lane": "k" }, { "time": 426600, "lane": "l" }, { "time": 426960, "lane": "l" }, { "time": 427320, "lane": "l" }, { "time": 427680, "lane": "l" }, { "time": 428040, "lane": "l" }, { "time": 428400, "lane": "l" }, { "time": 428760, "lane": "l" }, { "time": 429120, "lane": "l" }, { "time": 429480, "lane": "l" }, { "time": 429840, "lane": "l" }, { "time": 430320, "lane": "l" }, { "time": 430680, "lane": "l" }, { "time": 431040, "lane": "l" }, { "time": 431400, "lane": "l" }, { "time": 431760, "lane": "l" }, { "time": 432120, "lane": "l" }, { "time": 432480, "lane": "l" }, { "time": 432840, "lane": "l" }, { "time": 433200, "lane": "l" }, { "time": 433560, "lane": "k" }, { "time": 434160, "lane": "k" }, { "time": 436080, "lane": "s" }, { "time": 438960, "lane": "l" }, { "time": 439920, "lane": "s" }, { "time": 441600, "lane": "l" }, { "time": 441960, "lane": "a" }, { "time": 442320, "lane": "l" }, { "time": 442680, "lane": "a" }, { "time": 443040, "lane": "k" }, { "time": 443400, "lane": "a" }, { "time": 443760, "lane": "k" }, { "time": 444120, "lane": "a" }, { "time": 444480, "lane": "s" }, { "time": 444840, "lane": "a" }, { "time": 445200, "lane": "k" }, { "time": 445560, "lane": "a" }, { "time": 445920, "lane": "k" }, { "time": 446280, "lane": "a" }, { "time": 446640, "lane": "l" }, { "time": 447000, "lane": "a" }, { "time": 447360, "lane": "s" }, { "time": 447720, "lane": "a" }, { "time": 448080, "lane": "k" }, { "time": 448440, "lane": "a" }, { "time": 448800, "lane": "s" }, { "time": 449160, "lane": "a" }, { "time": 449760, "lane": "a" }, { "time": 451200, "lane": "k" }, { "time": 452640, "lane": "s" }, { "time": 453600, "lane": "s" }, { "time": 454920, "lane": "a" }, { "time": 456240, "lane": "s" }, { "time": 456960, "lane": "s" }, { "time": 457560, "lane": "k" }, { "time": 457920, "lane": "k" }, { "time": 458520, "lane": "k" }, { "time": 458880, "lane": "a" }, { "time": 459480, "lane": "k" }, { "time": 459840, "lane": "l" }, { "time": 460440, "lane": "k" }, { "time": 460800, "lane": "l" }, { "time": 461280, "lane": "k" }, { "time": 461760, "lane": "k" }, { "time": 462240, "lane": "k" }, { "time": 462720, "lane": "k" }, { "time": 463080, "lane": "k" }, { "time": 463440, "lane": "l" }, { "time": 463800, "lane": "k" }, { "time": 464160, "lane": "k" }, { "time": 464520, "lane": "k" }, { "time": 464960, "lane": "k" }, { "time": 465440, "lane": "k" }, { "time": 465920, "lane": "k" }, { "time": 466400, "lane": "k" }, { "time": 466800, "lane": "k" }, { "time": 467160, "lane": "k" }, { "time": 467520, "lane": "k" }, { "time": 467880, "lane": "k" }, { "time": 468240, "lane": "k" }, { "time": 468640, "lane": "k" }, { "time": 469120, "lane": "l" }, { "time": 469600, "lane": "l" }, { "time": 470040, "lane": "s" }, { "time": 470400, "lane": "a" }, { "time": 470760, "lane": "a" }, { "time": 471120, "lane": "k" }, { "time": 472480, "lane": "l" }, { "time": 472960, "lane": "l" }, { "time": 473440, "lane": "l" }, { "time": 473880, "lane": "l" }, { "time": 474240, "lane": "l" }, { "time": 474600, "lane": "l" }, { "time": 474960, "lane": "l" }, { "time": 475320, "lane": "l" }, { "time": 475680, "lane": "l" }, { "time": 476040, "lane": "l" }, { "time": 476400, "lane": "l" }, { "time": 476760, "lane": "s" }, { "time": 477120, "lane": "s" }, { "time": 477480, "lane": "k" }, { "time": 477840, "lane": "l" }, { "time": 478200, "lane": "s" }, { "time": 478560, "lane": "s" }, { "time": 482400, "lane": "l" }, { "time": 482880, "lane": "k" }, { "time": 483360, "lane": "l" }, { "time": 483840, "lane": "l" }, { "time": 484320, "lane": "k" }, { "time": 484800, "lane": "s" }, { "time": 485280, "lane": "k" }, { "time": 485760, "lane": "s" }, { "time": 486240, "lane": "s" }, { "time": 486680, "lane": "a" }, { "time": 492480, "lane": "k" }, { "time": 493920, "lane": "a" }, { "time": 496200, "lane": "l" }, { "time": 497280, "lane": "a" }, { "time": 499080, "lane": "a" }, { "time": 501960, "lane": "a" }, { "time": 502440, "lane": "k" }, { "time": 502800, "lane": "k" }, { "time": 503160, "lane": "k" }, { "time": 503520, "lane": "k" }, { "time": 503880, "lane": "k" }, { "time": 504240, "lane": "a" }, { "time": 504600, "lane": "a" }, { "time": 504960, "lane": "a" }, { "time": 505320, "lane": "a" }, { "time": 505680, "lane": "a" }, { "time": 506040, "lane": "a" }, { "time": 506400, "lane": "a" }, { "time": 506760, "lane": "a" }, { "time": 507120, "lane": "a" }, { "time": 507480, "lane": "a" }, { "time": 507840, "lane": "k" }, { "time": 509160, "lane": "a" }  ]}
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const backgroundMusic = document.getElementById('backgroundMusic');
+
+        // 드롭박스 요소
+        const dropBox = document.getElementById('dropBox');
+        let draggedImage = null;
+
+        // 페이지가 로드되면 문자열을 캔버스에 표시
+        window.onload = function() {
+            const message = "음악이 선택되면 게임이 시작됩니다.\n\n게임 버튼 : A, S, K, L\n\nSpace Bar : 게임 종료\n\nEnter : 재시작";
+            drawTextOnCanvas(message);
+        };
+
+        // 드래그 시작 이벤트
+        document.querySelectorAll('.musicBox img').forEach(img => {
+            img.addEventListener('dragstart', (event) => {
+                draggedImage = event.target;
+            });
+        });
+
+        // 드래그 오버 및 드롭
+        dropBox.addEventListener('dragover', (event) => {
+            event.preventDefault();
+        });
+
+        dropBox.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropBox.innerHTML = ''; // 박스 리셋
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // 드롭 시 캔버스 내용 지우기
+
+            if (draggedImage) {
+                const droppedImg = draggedImage.cloneNode(true);
+                droppedImg.style.width = '100%';
+                droppedImg.style.height = '100%';
+                droppedImg.style.objectFit = 'contain';
+                dropBox.appendChild(droppedImg);
+
+                // 이미지에 따른 MP3 및 노트 데이터 설정
+                const selectedMusic = musicFiles[draggedImage.id]; // 드래그된 이미지 ID에 따른 파일 선택
+                if (selectedMusic) {
+                    loadMusicAndData(selectedMusic.audio, selectedMusic.notes);
+                }
+            }
+        });
+
+        // 캔버스에 텍스트를 그리는 함수 
+        function drawTextOnCanvas(text) {
+            ctx.font = "30px Arial";
+            ctx.fillStyle = "black"; // 원하는 색상으로 텍스트 색상 설정
+            ctx.textAlign = "center";
+
+            const lines = text.split('\n');
+            const lineHeight = 40; // 각 줄의 높이 설정
+
+            // 중앙에 맞춰서 텍스트를 출력
+            const startY = canvas.height / 2 - (lines.length - 1) * lineHeight / 2;
+            lines.forEach((line, index) => {
+                ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
+            });
+        }
+
+        // 음악과 노트 데이터 로드
+        function loadMusicAndData(musicFile, notesData) {
+            backgroundMusic.src = musicFile;
+            userNoteData = notesData; // 하드코딩된 노트 데이터 설정
+            startGame(); // 음악 및 데이터 로드 후 게임 시작
+        }
+
+        // 노트 객체 생성 함수
+        function createNote(lane) {
+            return {
+                x: lanePositions[lane],
+                y: 0,
+                lane: lane
+            };
+        }
+
+        // 게임 초기화 함수
+        function resetGame() {
+            notes = [];
+            resultText = "";
+            score = 0;
+            combocount = 0;
+            hitcount = 0;
+            misscount = 0;
+            clearTimeout(resultTimeout);
+            nextNoteIndex = 0; // 다음 노트 인덱스 초기화
+        }
+
+        // 게임 시작 함수
+        function startGame() {
+            resetGame();
+            gameRunning = true;
+            backgroundMusic.currentTime = 0;
+            backgroundMusic.play();
+        }
+
+        // 게임 종료 함수
+        function stopGame() {
+            gameRunning = false;
+            backgroundMusic.pause();
+            backgroundMusic.currentTime = 0;
+            console.log("Game stopped.");
+
+            const stopMessage = "게임이 종료되었습니다.\n\nEnter키를 누르면 재시작합니다.\n\n혹은 다른 노래를 드래그해서 선택하세요.";
+            drawTextOnCanvas(stopMessage);
+        }
+
+        // 노트 그리기 함수
+        function drawNotes() {
+            notes.forEach(note => {
+                ctx.fillStyle = 'red'; // 노트 색상 변경
+                ctx.fillRect(note.x, note.y, 120, 20); // 노트 크기 조정
+            });
+        }
+
+        // 레인 그리기 함수
+        function drawLanes() {
+            const topExclusion = 110; // 상단 제외할 부분의 높이
+
+            lanes.forEach(lane => {
+                // 레인 색상을 활성화 여부에 따라 설정
+                if (activeLanes[lane]) {
+                    // 눌린 상태일 때 색상 적용 (예: 녹색)
+                    ctx.fillStyle = 'blue'; // 레인의 하단 부분 색상
+                } else {
+                    // 기본 상태일 때 색상 적용 (예: 파란색)
+                    ctx.fillStyle = 'yellowgreen'; // 레인의 하단 부분 색상
+                }
+
+                // 레인 하단 부분 (키 입력 구역)
+                ctx.fillRect(lanePositions[lane], canvas.height - 60, 120, 40);
+
+                // 레인이 위에서부터 내려오는 부분 (노트가 내려오는 영역)
+                if (activeLanes[lane]) {
+                    // 활성화된 경우 노트가 내려오는 영역 색상 변경
+                    ctx.fillStyle = 'lightblue'; // 활성화된 레인의 노트 영역 색상
+                } else {
+                    // 비활성화된 경우 노트가 내려오는 영역 색상
+                    ctx.fillStyle = 'lightgrey'; // 기본 노트 영역 색상
+                }
+
+                // 노트가 내려오는 영역 그리기 (상단 및 하단 부분 제외)
+                ctx.fillRect(lanePositions[lane], topExclusion, 120, canvas.height - 60 - topExclusion); // 레인의 전체 높이 중 상단과 하단 제외
+            });
+        }
+
+        // 결과 텍스트 그리기 함수
+        function drawResultText() {
+            ctx.font = "30px Arial";
+            ctx.fillStyle = "black";
+            ctx.fillText("Score: " + score, 100, 50); // 점수 출력
+            ctx.fillText("Combo: " + combocount, 100, 100); // 콤보 출력
+            
+            if (resultText !== "") {
+                ctx.font = "100px Arial";
+                ctx.fillStyle = "Orange";
+                ctx.fillText(resultText, canvas.width / 2, 300); // 결과 출력
+            }
+        }
+
+        // 노트 업데이트 함수
+        function updateNotes() {
+            for (let i = notes.length - 1; i >= 0; i--) {
+                notes[i].y += noteSpeed;
+                if (notes[i].y > canvas.height) {
+                    showResult("Miss");
+                    misscount++;
+                    combocount = 0;
+                    notes.splice(i, 1);
+                }
+            }
+        }
+
+        // 쿨타임을 위한 변수
+        let keyCooldown = {
+            a: false,
+            s: false,
+            k: false,
+            l: false
+        };
+        const cooldownDuration = 10; // 10ms 쿨타임 (원하는 대로 조정 가능)
+
+        // 적중 여부를 확인하는 함수
+        function checkHit(key) {
+            if (keyCooldown[key]) return; // 쿨타임 중이면 적중 처리 안 함
+
+            for (let i = notes.length - 1; i >= 0; i--) {
+                let note = notes[i];
+
+                // 적중 구역을 확인
+                if (note.lane === key && note.y > canvas.height - 80 && note.y < canvas.height - 0) {
+                    hitcount++; // 적중 횟수 증가
+                    score += 10; // 점수 추가
+                    combocount++; // 콤보 증가
+                    notes.splice(i, 1); // 적중된 노트를 배열에서 제거
+                    // showResult("Hit!"); // 결과 텍스트 출력
+
+                    // 쿨타임 적용
+                    keyCooldown[key] = true;
+                    setTimeout(() => {
+                        keyCooldown[key] = false; // 쿨타임 해제
+                    }, cooldownDuration);
+
+                    return; // 적중한 후에는 더 이상 검사하지 않음
+                }
+            }
+        }
+
+        // 충돌 및 결과 처리
+        function checkHit(key) {
+            for (let i = notes.length - 1; i >= 0; i--) {
+                let note = notes[i];
+                
+                // BAD 적중 처리 (나쁜 적중)
+                if (note.lane === key && note.y > canvas.height - 100 && note.y < canvas.height - 70) {
+                    hitcount++;
+                    badcount++; // badcount 증가
+                    score += 10; // 적중시 기본 점수 추가
+                    notes.splice(i, 1); // 노트 제거
+                    showResult("BAD!"); // BAD 적중 메시지 출력
+
+                    // badcount가 5에 도달하면 콤보 카운터 초기화
+                    if (badcount >= 5) {
+                        combocount = 0; // 콤보 카운터 초기화
+                        badcount = 0; // badcount 리셋
+                    }
+                    return;
+                }
+                
+                // GOOD 적중 처리 (정상 적중)
+                else if (note.lane === key && note.y >= canvas.height - 70 && note.y < canvas.height - 0) {
+                    hitcount++;
+                    score += 50; // 좋은 적중시 기본 점수 추가
+                    combocount++; // 콤보 증가
+                    badcount = 0; // 성공하면 badcount 리셋
+                    notes.splice(i, 1); // 노트 제거
+                    showResult("Hit!"); // Hit 메시지 출력
+                    
+                    // combocount가 5 이상이면 추가 점수 계산
+                    if (combocount >= 5) {
+                        // combocount / 5의 정수값 * 2를 점수에 추가
+                        let bonusMultiplier = Math.floor(combocount / 5) * 2;
+                        score += bonusMultiplier;
+                    }
+
+                    return;
+                }
+            }
+        }
+
+        // 결과 표시 함수
+        function showResult(result) {
+            resultText = result;
+            if (resultTimeout) {
+                clearTimeout(resultTimeout);
+            }
+            resultTimeout = setTimeout(() => {
+                resultText = "";
+            }, 300);
+        }
+
+        // 키보드 입력 처리
+        document.addEventListener('keydown', (event) => {
+            let key = event.key;
+            if (key === 'Enter' && !gameRunning) startGame();
+            if (key === ' ' && gameRunning) stopGame();
+            if (lanes.includes(key)) {
+                activeLanes[key] = true;
+                checkHit(key); // 충돌 검사
+            }
+        });
+
+        // 키보드 입력 해제
+        document.addEventListener('keyup', (event) => {
+            let key = event.key;
+            if (lanes.includes(key)) {
+                activeLanes[key] = false;
+            }
+        });
+
+        // 게임 루프
+        function gameLoop() {
+            if (gameRunning) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // 캔버스 클리어
+                
+                drawLanes();
+                drawNotes();
+                drawResultText();
+                updateNotes();
+
+                // 하드코딩된 노트 데이터를 게임 시간에 맞춰 생성
+                while (nextNoteIndex < userNoteData.length && userNoteData[nextNoteIndex].time <= backgroundMusic.currentTime * 1000) {
+                    let newNote = createNote(userNoteData[nextNoteIndex].lane);
+                    notes.push(newNote);
+                    nextNoteIndex++;
+                }
+
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // 음악이 시작될 때 게임 루프 시작
+        backgroundMusic.addEventListener('play', gameLoop);
+    </script>
+</body>
+</html>
